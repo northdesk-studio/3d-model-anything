@@ -1,0 +1,44 @@
+name: Build iPhone app for personal installation
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ios-cloud-build]
+    paths:
+      - 'apps/house-capture/**'
+      - 'tools/build-ios-unsigned.sh'
+      - 'tools/validate-ios-app.py'
+      - '.github/workflows/ios-personal-build.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-personal-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  iphone:
+    runs-on: xcode-27
+    timeout-minutes: 30
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.0.app/Contents/Developer
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+      HOMEBREW_NO_ANALYTICS: '1'
+    steps:
+      - name: Check out source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Install project generator
+        run: command -v xcodegen >/dev/null || brew install xcodegen
+      - name: Build and check unsigned device package
+        run: bash tools/build-ios-unsigned.sh
+      - name: Save package and build evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: iphone-personal-build-${{ github.sha }}
+          path: artifacts/ios/
+          if-no-files-found: error
+          retention-days: 14
